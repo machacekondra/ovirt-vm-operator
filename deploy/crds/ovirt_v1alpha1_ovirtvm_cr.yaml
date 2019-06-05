@@ -1,0 +1,7 @@
+apiVersion: ovirt.kubevirt.io/v1alpha1
+kind: OvirtVm
+metadata:
+  name: example-ovirtvm
+spec:
+  # Add fields here
+  size: 3

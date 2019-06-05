@@ -1,0 +1,5 @@
+---
+- version: v1alpha1
+  group: ovirt.kubevirt.io
+  kind: OvirtVm
+  role: /opt/ansible/roles/ovirtvm

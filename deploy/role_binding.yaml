@@ -1,0 +1,11 @@
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ovirt-vm-operator
+subjects:
+- kind: ServiceAccount
+  name: ovirt-vm-operator
+roleRef:
+  kind: Role
+  name: ovirt-vm-operator
+  apiGroup: rbac.authorization.k8s.io

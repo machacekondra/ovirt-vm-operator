@@ -1,0 +1,76 @@
+- name: Get CA file of oVirt
+  get_url:
+    url: "http://{{ ovirt_fqdn | mandatory }}/ovirt-engine/services/pki-resource?resource=ca-certificate&format=X509-PEM-CA"
+    dest: /tmp/cafile.pem
+    mode: '0664'
+  when: "ovirt_ca_file is not defined"
+
+- name: Login to oVirt
+  ovirt_auth:
+    username: "{{ ovirt_username | mandatory }}"
+    password: "{{ ovirt_password | mandatory }}"
+    url: "https://{{ ovirt_fqdn | mandatory }}/ovirt-engine/api"
+    ca_file: "{{ ovirt_ca_file | default('/tmp/cafile.pem') }}"
+
+- name: Gather Vm facts
+  ovirt_vm_facts:
+    auth: "{{ ovirt_auth }}"
+    pattern: "name={{ vm_name | mandatory }}"
+    fetch_nested: true
+
+- name: Download VM disk
+  ovirt_disk:
+    auth: "{{ ovirt_auth }}"
+    id: "{{ ovirt_vms[0].disk_attachments[0].id }}"
+    download_image_path: "/tmp/image.qcow2"
+    timeout: 600
+
+- name: Create VM
+  kubevirt_vm:
+    state: present
+    wait: true
+    wait_timeout: "{{ wait_timeout | default(600)}}"
+    name: "{{ meta.name }}" 
+    namespace: "{{ meta.namespace | default('default') }}"
+    #memory: "{{ ovirt_vms[0].memory / 1024 / 1024 }}Mi"
+    memory: "128Mi"
+    labels:
+      kubevirt.io/vm: myvm
+      origin: ovirt
+    interfaces:
+      - name: default
+        bridge: {}
+        network:
+          pod: {}
+    datavolumes:
+      - name: "{{ vm_datavolume_name | default('mydv') }}"
+        source:
+          upload: {}
+        pvc:
+          accessModes:
+            - ReadWriteOnce
+          storage: 1Gi  # TODO: create a real qcow size
+
+- name: Get cdi-uploadproxy service IP
+  k8s_facts:
+    api_version: v1
+    kind: Service
+    name: cdi-uploadproxy
+    namespace: cdi
+  register: uploadproxysvc
+
+- name: Upload local image to dv
+  kubevirt_cdi_upload:
+    pvc_namespace: default
+    pvc_name: mydv
+    upload_host: "https://{{ uploadproxysvc.resources[0].spec.clusterIP }}:{{ uploadproxysvc.resources[0].spec.ports[0].port }}"
+    upload_host_validate_certs: false
+    path: /tmp/image.qcow2
+
+- name: Run VM
+  kubevirt_vm:
+    state: running
+    wait: true
+    wait_timeout: "{{ wait_timeout | default(600)}}"
+    name: "{{ vm_name }}" 
+    namespace: "{{ namespace | default('default') }}"

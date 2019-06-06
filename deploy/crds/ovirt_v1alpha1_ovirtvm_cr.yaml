@@ -1,7 +1,12 @@
 apiVersion: ovirt.kubevirt.io/v1alpha1
 kind: OvirtVm
 metadata:
-  name: example-ovirtvm
+  name: cirros
+  namespace: default
 spec:
-  # Add fields here
-  size: 3
+  vm_name: cirros
+  namespace: default
+  wait_timeout: 180
+  ovirt_fqdn: omachace-engine-rpm
+  ovirt_username: admin@internal
+  ovirt_password: "123456"
